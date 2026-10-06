@@ -1,0 +1,955 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.1">
+  <help_text>CyclingCoachController
+--
++ setUpProfile(profile : RiderProfile)
++ importRide(filePath : String)
++ analyzeRide(ride : Ride) : String
++ generateTrainingPlan() : TrainingPlan
++ askAI(question : String) : String
++ getProgress() : String
++ analyzeWeaknesses() : String
++ getWeeklySummary() : String
++ compareRides(ride1 : Ride, ride2 : Ride) : String
++ getWorkoutCalendar() : String
++ getPersonalBests() : String</help_text>
+  <zoom_level>9</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>801</x>
+      <y>387</y>
+      <w>216</w>
+      <h>261</h>
+    </coordinates>
+    <panel_attributes>RiderProfile
+--
+- weight : double
+- ftp : int
+- maxHeartRate : int
+- restingHeartRate : int
+- availableTrainingDays : int
+- targetWeight : double
+- targetFTP : int
+- mainGoal : String
+- rideHistory : RideHistory
+- trainingPlan : TrainingPlan
+- observers : List&lt;Observer&gt;
+--
++ updateProfile()
++ attach(observer : Observer)
++ detach(observer : Observer)
++ notifyObservers()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>468</x>
+      <y>333</y>
+      <w>126</w>
+      <h>162</h>
+    </coordinates>
+    <panel_attributes>Ride
+--
+- date : Date
+- distance : double
+- duration : double
+- avgSpeed : double
+- avgHeartRate : int
+- maxHeartRate : int
+- avgPower : int
+- maxPower : int
+- avgCadence : int
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>549</x>
+      <y>729</y>
+      <w>198</w>
+      <h>99</h>
+    </coordinates>
+    <panel_attributes>RideHistory
+--
+- rides : List&lt;Ride&gt;
+--
++ addRide(ride : Ride)
++ getRides() : List&lt;Ride&gt;
++ getRecentRides() : List&lt;Ride&gt;</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>729</x>
+      <y>639</y>
+      <w>135</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=  1
+m2=1
+</panel_attributes>
+    <additional_attributes>130.0;10.0;10.0;100.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>360</x>
+      <y>648</y>
+      <w>225</w>
+      <h>54</h>
+    </coordinates>
+    <panel_attributes>CSVImporter
+--
++ importRide(filePath : String) : Ride</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>459</x>
+      <y>486</y>
+      <w>54</w>
+      <h>180</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>40.0;10.0;10.0;180.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>837</x>
+      <y>702</y>
+      <w>207</w>
+      <h>171</h>
+    </coordinates>
+    <panel_attributes>TrainingPlan
+--
+- workouts : List&lt;Workout&gt;
+- observers : List&lt;Observer&gt;
+--
++ addWorkout(workout : Workout)
++ getWorkouts() : List&lt;Workout&gt;
++ removeWorkout(workout: Workout)
++ removeExpiredWorkouts()
++ attach(observer : Observer)
++ detach(observer : Observer)
++ notifyObservers()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1215</x>
+      <y>459</y>
+      <w>126</w>
+      <h>99</h>
+    </coordinates>
+    <panel_attributes>Workout
+--
+- date : Date
+- type : String
+- duration : double
+- targetPower : int
+- description : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1008</x>
+      <y>549</y>
+      <w>252</w>
+      <h>171</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+m2=0..*</panel_attributes>
+    <additional_attributes>10.0;170.0;260.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>531</x>
+      <y>693</y>
+      <w>72</w>
+      <h>54</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=0..*
+m2= 1
+
+</panel_attributes>
+    <additional_attributes>10.0;10.0;60.0;40.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1314</x>
+      <y>801</y>
+      <w>234</w>
+      <h>45</h>
+    </coordinates>
+    <panel_attributes>TrainingPlanParser
+--
++ parsePlan(text : String) : TrainingPlan</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>945</x>
+      <y>639</y>
+      <w>45</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1
+m2=0..1
+</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;70.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>981</x>
+      <y>1251</y>
+      <w>225</w>
+      <h>63</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/LLMClient/
+--
++ sendPrompt(prompt : String) : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>981</x>
+      <y>1422</y>
+      <w>234</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>DeepSeekAdapter
+--
+- service : DeepSeekService
+--
++ sendPrompt(prompt : String) : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1089</x>
+      <y>1305</y>
+      <w>27</w>
+      <h>135</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;130.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>945</x>
+      <y>945</y>
+      <w>432</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>TrainingPlanGenerator
+--
+- llmClient : LLMClient
+- contextService : RiderContextService
+- parser : TrainingPlanParser
+- strategy : TrainingStrategy
+--
++ generatePlan(profile : RiderProfile, history : RideHistory) : TrainingPlan</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1071</x>
+      <y>1044</y>
+      <w>36</w>
+      <h>225</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;230.0;20.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1341</x>
+      <y>837</y>
+      <w>36</w>
+      <h>126</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>20.0;10.0;10.0;120.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>954</x>
+      <y>864</y>
+      <w>234</w>
+      <h>99</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;10.0;240.0;90.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>198</x>
+      <y>1332</y>
+      <w>495</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>AIChatService
+--
+- llmClient : LLMClient
+- contextService : RiderContextService
+--
++ askQuestion(question : String, profile : RiderProfile, history : RideHistory) : String
++ analyzeWeakness(profile : RiderProfile, history : RideHistory) : String
++ generateWeeklySummary(profile : RiderProfile, history : RideHistory) : String
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>684</x>
+      <y>1278</y>
+      <w>315</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>330.0;10.0;10.0;100.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1251</x>
+      <y>1134</y>
+      <w>324</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>RideAnalysisService
+--
+- llmClient : LLMClient
+- contextService : RiderContextService
+--
++ analyzeRide(ride : Ride, profile : RiderProfile) : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1188</x>
+      <y>1161</y>
+      <w>81</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;100.0;70.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>783</x>
+      <y>45</y>
+      <w>234</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>FitnessRecord
+--
+- date : Date
+- ftp : int
+- weight : double</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>738</x>
+      <y>180</y>
+      <w>342</w>
+      <h>153</h>
+    </coordinates>
+    <panel_attributes>ProgressTracker
+--
+-records : List&lt;FitnessRecord&gt;
+--
++ addRecord(record : FitnessRecord)
++ getRecords() : List&lt;FitnessRecord&gt;
++ getFTPChange() : int
++ getWeightChange() : double
++ getFTPGoalProgress(profile : RiderProfile) : double
++ getWeightGoalProgress(profile : RiderProfile) : double
++ update()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>558</x>
+      <y>486</y>
+      <w>117</w>
+      <h>261</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+m2=0..*</panel_attributes>
+    <additional_attributes>110.0;270.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>909</x>
+      <y>117</y>
+      <w>45</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+m2=0..*</panel_attributes>
+    <additional_attributes>10.0;70.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>0</x>
+      <y>396</y>
+      <w>297</w>
+      <h>45</h>
+    </coordinates>
+    <panel_attributes>RideComparisonService
+--
++ compareRides(ride1 : Ride, ride2 : Ride) : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>288</x>
+      <y>405</y>
+      <w>198</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>200.0;10.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>459</x>
+      <y>981</y>
+      <w>378</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>WorkoutCalendarService
+--
++ getWeekWorkouts(plan : TrainingPlan) : List&lt;Workout&gt;
++ getWeekRides(history : RideHistory) : List&lt;Ride&gt;
++ update()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>639</x>
+      <y>819</y>
+      <w>63</w>
+      <h>180</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;10.0;50.0;180.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>756</x>
+      <y>864</y>
+      <w>99</w>
+      <h>135</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>90.0;10.0;10.0;130.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>99</x>
+      <y>828</y>
+      <w>306</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>PersonalBestService
+--
++ getLongestRide(history : RideHistory) : Ride
++ getHighestAvgPower(history : RideHistory) : Ride
++ getHighestMaxPower(history : RideHistory) : Ride
++ getFastestAvgSpeed(history : RideHistory) : Ride</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>396</x>
+      <y>783</y>
+      <w>171</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>170.0;10.0;10.0;100.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>585</x>
+      <y>1125</y>
+      <w>378</w>
+      <h>63</h>
+    </coordinates>
+    <panel_attributes>RiderContextService
+--
++ buildContext(profile : RiderProfile, history : RideHistory) : String
++ buildRideContext(profile : RiderProfile, ride : Ride) : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>612</x>
+      <y>1179</y>
+      <w>198</w>
+      <h>171</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>200.0;10.0;10.0;170.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>954</x>
+      <y>1152</y>
+      <w>315</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;10.0;330.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>900</x>
+      <y>1044</y>
+      <w>108</w>
+      <h>99</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;90.0;100.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1485</x>
+      <y>522</y>
+      <w>306</w>
+      <h>216</h>
+    </coordinates>
+    <panel_attributes>CyclingCoachController
+--
+- profile : RiderProfile
+--
++ setUpProfile(profile : RiderProfile)
++ importRide(filePath : String)
++ analyzeRide(ride : Ride) : String
++ generateTrainingPlan() : TrainingPlan
++ askAI(question : String) : String
++ getProgress() : String
++ analyzeWeaknesses() : String
++ getWeeklySummary() : String
++ compareRides(ride1 : Ride, ride2 : Ride) : String
++ getWorkoutCalendar() : String
++ getPersonalBests() : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1368</x>
+      <y>729</y>
+      <w>342</w>
+      <h>288</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;300.0;290.0;230.0;360.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1566</x>
+      <y>729</y>
+      <w>180</w>
+      <h>459</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;490.0;160.0;320.0;180.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>684</x>
+      <y>729</y>
+      <w>1089</w>
+      <h>684</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;740.0;1170.0;730.0;1190.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1008</x>
+      <y>558</y>
+      <w>495</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>lt=-
+
+</panel_attributes>
+    <additional_attributes>10.0;10.0;530.0;70.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>576</x>
+      <y>657</y>
+      <w>927</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;10.0;1010.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>234</x>
+      <y>0</y>
+      <w>1314</w>
+      <h>540</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;440.0;420.0;10.0;1180.0;10.0;1440.0;580.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>801</x>
+      <y>684</y>
+      <w>702</w>
+      <h>315</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;330.0;760.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>396</x>
+      <y>729</y>
+      <w>1107</w>
+      <h>189</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;180.0;750.0;190.0;1210.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1071</x>
+      <y>252</y>
+      <w>432</w>
+      <h>288</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;..</panel_attributes>
+    <additional_attributes>10.0;10.0;460.0;300.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1494</x>
+      <y>297</y>
+      <w>180</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/Subject/
+--
++ attach(observer : Observer)
++ detach(observer : Observer)
++ notifyObservers()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1440</x>
+      <y>144</y>
+      <w>225</w>
+      <h>63</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/Observer/
+--
++ update()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1566</x>
+      <y>198</y>
+      <w>45</w>
+      <h>117</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1
+m2=0..*
+</panel_attributes>
+    <additional_attributes>10.0;110.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1008</x>
+      <y>342</y>
+      <w>504</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>540.0;10.0;10.0;100.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>828</x>
+      <y>198</y>
+      <w>639</w>
+      <h>801</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>690.0;10.0;540.0;640.0;10.0;870.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1071</x>
+      <y>162</y>
+      <w>387</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>410.0;10.0;10.0;80.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1035</x>
+      <y>378</y>
+      <w>477</w>
+      <h>387</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>510.0;10.0;400.0;230.0;10.0;410.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1926</x>
+      <y>657</y>
+      <w>216</w>
+      <h>63</h>
+    </coordinates>
+    <panel_attributes>CyclingCoachCLI
+--
+- controller : CyclingCoachController
+--
++ start()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1926</x>
+      <y>504</y>
+      <w>216</w>
+      <h>63</h>
+    </coordinates>
+    <panel_attributes>CyclingCoachGUI
+--
+- controller : CyclingCoachController
+--
++ start()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1782</x>
+      <y>675</y>
+      <w>162</w>
+      <h>45</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=  1
+m2=1
+</panel_attributes>
+    <additional_attributes>160.0;20.0;10.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1782</x>
+      <y>522</y>
+      <w>162</w>
+      <h>45</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=  1
+m2=1
+</panel_attributes>
+    <additional_attributes>160.0;20.0;10.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1971</x>
+      <y>954</y>
+      <w>162</w>
+      <h>63</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/TrainingStrategy/
+--
++ buildPrompt() : String
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1962</x>
+      <y>1107</y>
+      <w>153</w>
+      <h>45</h>
+    </coordinates>
+    <panel_attributes>FTPTrainingStrategy
+--
++ buildPrompt() : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1989</x>
+      <y>819</y>
+      <w>171</w>
+      <h>45</h>
+    </coordinates>
+    <panel_attributes>WeightTrainingStrategy
+--
++ buildPrompt() : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2277</x>
+      <y>954</y>
+      <w>153</w>
+      <h>45</h>
+    </coordinates>
+    <panel_attributes>GeneralTrainingStrategy
+--
++ buildPrompt() : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>2034</x>
+      <y>1008</y>
+      <w>27</w>
+      <h>117</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;110.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>2124</x>
+      <y>972</y>
+      <w>171</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>10.0;10.0;170.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>2088</x>
+      <y>855</y>
+      <w>27</w>
+      <h>117</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>10.0;110.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1368</x>
+      <y>990</y>
+      <w>621</w>
+      <h>45</h>
+    </coordinates>
+    <panel_attributes>lt=-
+</panel_attributes>
+    <additional_attributes>670.0;10.0;10.0;30.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>972</x>
+      <y>1593</y>
+      <w>270</w>
+      <h>72</h>
+    </coordinates>
+    <panel_attributes>DeepSeekService
+--
+- apiKey : String
+--
++ generateResponse(prompt : String) : String</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1080</x>
+      <y>1494</y>
+      <w>27</w>
+      <h>117</h>
+    </coordinates>
+    <panel_attributes>lt=-</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;110.0</additional_attributes>
+  </element>
+</diagram>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLSequenceAllInOne</id>
+    <coordinates>
+      <x>60</x>
+      <y>40</y>
+      <w>1070</w>
+      <h>440</h>
+    </coordinates>
+    <panel_attributes>title=Update Rider Profile
+obj=Cyclist~a
+obj=CyclingCoachGUI~b
+obj=CyclingCoachController~c
+obj=RiderProfile~d
+obj=ProgressTracker~e
+
+a-&gt;b: edit profile and click Save
+b-&gt;c: setUpProfile(profile)
+c-&gt;d: updateProfile()
+d-&gt;e: update()
+e-&gt;d: update complete
+d-&gt;c: profile updated
+c-&gt;b: update successful
+b-&gt;a: display success message</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

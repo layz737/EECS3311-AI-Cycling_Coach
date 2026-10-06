@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLSequenceAllInOne</id>
+    <coordinates>
+      <x>0</x>
+      <y>0</y>
+      <w>2620</w>
+      <h>900</h>
+    </coordinates>
+    <panel_attributes>title=Generate Weekly Training Plan
+//
+obj=Cyclist~a 
+obj=CyclingCoachGUI~b 
+obj=CyclingCoachController~c
+obj=TrainingPlanGenerator~d
+obj=RiderProfile~e
+obj=TrainingStrategy~f
+obj=RiderContextService~g
+obj=DeepSeekAdapter~h
+obj=DeepSeekService~i
+obj=TrainingPlanParser~j
+obj=TrainingPlan~k
+
+a-&gt;b: click Generate Plan button
+b-&gt;c: generateTrainingPlan()
+c-&gt;d: generatePlan(profile,history)
+d-&gt;e: getMainGoal()
+e-&gt;d: mainGoal
+d-&gt;f: buildPrompt()
+f-&gt;d: goalPrompt
+d-&gt;g: buildContext(profile, history)
+g-&gt;d: context
+d-&gt;h: sendPrompt(fullPrompt)
+h-&gt;i: generateResponse(fullPrompt)
+i-&gt;h: response
+h-&gt;d: response
+d-&gt;j: parsePlan(response)
+j-&gt;k: create training plan
+k-&gt;j: plan
+j-&gt;d: plan
+d-&gt;c: plan
+c-&gt;b: plan
+b-&gt;a: display Training Plan
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

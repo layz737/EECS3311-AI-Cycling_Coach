@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLSequenceAllInOne</id>
+    <coordinates>
+      <x>20</x>
+      <y>20</y>
+      <w>1070</w>
+      <h>470</h>
+    </coordinates>
+    <panel_attributes>title=Import Ride Data
+//
+obj=Cyclist~a
+obj=CyclingCoachGUI~b
+obj=CyclingCoachController~c
+obj=CSVImporter~d
+obj=RideHistory~e
+
+a-&gt;b: choose CSV file and click Import
+b-&gt;c: importRide(filePath)
+c-&gt;d: importRide(filePath)
+d-&gt;c: ride
+c-&gt;e: addRide(ride)
+e-&gt;c: ride added
+c-&gt;b: import successful
+b-&gt;a: display success message
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

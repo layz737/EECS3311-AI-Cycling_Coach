@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLSequenceAllInOne</id>
+    <coordinates>
+      <x>20</x>
+      <y>20</y>
+      <w>1690</w>
+      <h>660</h>
+    </coordinates>
+    <panel_attributes>title=Ask AI Question
+//
+obj=Cyclist~a
+obj=CyclingCoachGUI~b
+obj=CyclingCoachController~c
+obj=AIChatService~d
+obj=RiderContextService~e
+obj=DeepSeekAdapter~f
+obj=DeepSeekService~g
+
+a-&gt;b: enter question and click Ask AI button
+b-&gt;c: askAI(question)
+c-&gt;d: askQuestion(question, profile, history)
+d-&gt;e: buildContext(profile, history)
+e-&gt;d: context
+d-&gt;f: sendPrompt(fullPrompt)
+f-&gt;g: generateResponse(fullPrompt)
+g-&gt;f: response
+f-&gt;d: response
+d-&gt;c: response
+c-&gt;b: response
+b-&gt;a: display response</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

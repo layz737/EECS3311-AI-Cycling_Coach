@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.1">
+  <help_text>title=Compare Two Rides
+obj=Cyclist~a
+obj=CyclingCoachCLI~b
+obj=CyclingCoachController~c
+obj=RideHistory~d
+obj=RideComparisonService~e
+
+a-&gt;b: select Compare Rides
+b-&gt;c: getRideHistory()
+c-&gt;d: getRides()
+d-&gt;c: rides
+c-&gt;b: rides
+
+a-&gt;b: select ride1 and ride2
+b-&gt;c: compareRides(ride1, ride2)
+c-&gt;e: compareRides(ride1, ride2)
+e-&gt;c: comparison
+c-&gt;b: comparison
+b-&gt;a: display comparison</help_text>
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLSequenceAllInOne</id>
+    <coordinates>
+      <x>20</x>
+      <y>20</y>
+      <w>1090</w>
+      <h>590</h>
+    </coordinates>
+    <panel_attributes>title=Compare Two Rides
+//
+obj=Cyclist~a
+obj=CyclingCoachCLI~b
+obj=CyclingCoachController~c
+obj=RideHistory~d
+obj=RideComparisonService~e
+
+a-&gt;b: select Compare Rides
+b-&gt;c: getRideHistory()
+c-&gt;d: getRides()
+d-&gt;c: rides
+c-&gt;b: rides
+a-&gt;b: select ride1 and ride2
+b-&gt;c: compareRides(ride1, ride2)
+c-&gt;e: compareRides(ride1, ride2)
+e-&gt;c: comparison
+c-&gt;b: comparison
+b-&gt;a: display comparison</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>
