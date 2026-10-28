@@ -1,0 +1,17 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Eclipse
+bin/
+.settings/
+.classpath
+.project
+
+# Java
+*.class
+
+# OS files
+.DS_Store
+Thumbs.db
