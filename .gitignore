@@ -3,11 +3,12 @@
 .env.*
 !.env.example
 
+# Runtime data
+data/
+
 # Eclipse
 bin/
 .settings/
-.classpath
-.project
 
 # Java
 *.class
