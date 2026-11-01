@@ -1,10 +1,16 @@
 package model;
 
+import observer.Observer;
+import observer.Subject;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Rider measurements, availability, and goals for Stage 1 feature F01.
- * Observer support and relationships to other model classes are deferred.
+ * Notifies observers after a validated profile update.
  */
-public class RiderProfile {
+public class RiderProfile implements Subject {
     private double weight;
     private int ftp;
     private int maxHR;
@@ -13,6 +19,7 @@ public class RiderProfile {
     private double targetWeight;
     private int targetFTP;
     private String mainGoal;
+    private final List<Observer> observers = new ArrayList<>();
 
     /**
      * Creates a complete, valid profile.
@@ -22,7 +29,7 @@ public class RiderProfile {
     public RiderProfile(double weight, int ftp, int maxHR, int restingHR,
                         int availableTrainingDays, double targetWeight,
                         int targetFTP, String mainGoal) {
-        updateProfile(weight, ftp, maxHR, restingHR, availableTrainingDays,
+        setProfileValues(weight, ftp, maxHR, restingHR, availableTrainingDays,
                 targetWeight, targetFTP, mainGoal);
     }
 
@@ -35,6 +42,14 @@ public class RiderProfile {
     public final void updateProfile(double weight, int ftp, int maxHR, int restingHR,
                                     int availableTrainingDays, double targetWeight,
                                     int targetFTP, String mainGoal) {
+        setProfileValues(weight, ftp, maxHR, restingHR, availableTrainingDays,
+                targetWeight, targetFTP, mainGoal);
+        notifyObservers();
+    }
+
+    private void setProfileValues(double weight, int ftp, int maxHR, int restingHR,
+                                  int availableTrainingDays, double targetWeight,
+                                  int targetFTP, String mainGoal) {
         requirePositiveFinite(weight, "weight");
         requirePositive(ftp, "ftp");
         requirePositive(maxHR, "maxHR");
@@ -59,6 +74,28 @@ public class RiderProfile {
         this.targetWeight = targetWeight;
         this.targetFTP = targetFTP;
         this.mainGoal = mainGoal.strip();
+    }
+
+    @Override
+    public void addObserver(Observer observer) {
+        if (observer == null) {
+            throw new IllegalArgumentException("observer is required.");
+        }
+        if (!observers.contains(observer)) {
+            observers.add(observer);
+        }
+    }
+
+    @Override
+    public void removeObserver(Observer observer) {
+        observers.remove(observer);
+    }
+
+    @Override
+    public void notifyObservers() {
+        for (Observer observer : List.copyOf(observers)) {
+            observer.update();
+        }
     }
 
     private static void requirePositiveFinite(double value, String field) {
