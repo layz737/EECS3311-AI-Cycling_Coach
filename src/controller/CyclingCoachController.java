@@ -1,10 +1,18 @@
 package controller;
 
+import ai.DeepSeekAdapter;
+import ai.DeepSeekService;
+import ai.LLMClient;
 import model.Ride;
 import model.RideHistory;
 import model.RiderProfile;
 import model.TrainingPlan;
 import service.CSVImporter;
+import service.AIChatService;
+import service.RideAnalysisService;
+import service.RiderContextService;
+import service.TrainingPlanGenerator;
+import service.TrainingPlanParser;
 import service.PersonalBestService;
 import service.ProgressTracker;
 import service.RideComparisonService;
@@ -19,21 +27,28 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.ToDoubleFunction;
+import java.util.function.Supplier;
 
 /**
  * Stage 1 facade and MVC controller shared by future GUI and CLI views.
- * Coordinates deterministic features; AI methods will be added with their services.
+ * Coordinates deterministic and AI features without duplicating service logic.
  */
 public class CyclingCoachController {
     private RiderProfile profile;
     private final RideHistory rideHistory;
-    private final TrainingPlan trainingPlan;
+    private TrainingPlan trainingPlan;
     private ProgressTracker progressTracker;
     private final CSVImporter csvImporter;
     private final RideComparisonService comparisonService;
     private final PersonalBestService personalBestService;
-    private final WorkoutCalendarService calendarService;
+    private WorkoutCalendarService calendarService;
     private final ProfileStorage profileStorage;
+    private final Supplier<LLMClient> llmClientFactory;
+    private final RiderContextService contextService;
+    private final TrainingPlanParser planParser;
+    private AIChatService aiChatService;
+    private RideAnalysisService rideAnalysisService;
+    private TrainingPlanGenerator trainingPlanGenerator;
 
     /** Creates an empty session using default local profile storage. Call loadProfile() at startup. */
     public CyclingCoachController() {
@@ -50,12 +65,37 @@ public class CyclingCoachController {
                                  TrainingPlan trainingPlan, CSVImporter csvImporter,
                                  RideComparisonService comparisonService,
                                  PersonalBestService personalBestService, ProfileStorage profileStorage) {
+        this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
+                profileStorage, () -> new DeepSeekAdapter(new DeepSeekService()),
+                new RiderContextService(), new TrainingPlanParser());
+    }
+
+    /** Injects a provider-independent LLM client and shared AI infrastructure. */
+    public CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
+                                 TrainingPlan trainingPlan, CSVImporter csvImporter,
+                                 RideComparisonService comparisonService,
+                                 PersonalBestService personalBestService, ProfileStorage profileStorage,
+                                 LLMClient llmClient, RiderContextService contextService,
+                                 TrainingPlanParser planParser) {
+        this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
+                profileStorage, clientFactory(llmClient), contextService, planParser);
+    }
+
+    private CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
+                                  TrainingPlan trainingPlan, CSVImporter csvImporter,
+                                  RideComparisonService comparisonService,
+                                  PersonalBestService personalBestService, ProfileStorage profileStorage,
+                                  Supplier<LLMClient> llmClientFactory, RiderContextService contextService,
+                                  TrainingPlanParser planParser) {
         this.rideHistory = Objects.requireNonNull(rideHistory, "rideHistory is required");
         this.trainingPlan = trainingPlan;
         this.csvImporter = Objects.requireNonNull(csvImporter, "csvImporter is required");
         this.comparisonService = Objects.requireNonNull(comparisonService, "comparisonService is required");
         this.personalBestService = Objects.requireNonNull(personalBestService, "personalBestService is required");
         this.profileStorage = Objects.requireNonNull(profileStorage, "profileStorage is required");
+        this.llmClientFactory = Objects.requireNonNull(llmClientFactory, "llmClientFactory is required");
+        this.contextService = Objects.requireNonNull(contextService, "contextService is required");
+        this.planParser = Objects.requireNonNull(planParser, "planParser is required");
         this.calendarService = new WorkoutCalendarService(trainingPlan, rideHistory);
         if (trainingPlan != null) {
             trainingPlan.addObserver(calendarService);
@@ -143,6 +183,56 @@ public class CyclingCoachController {
 
     public String getWorkoutCalendar(LocalDate date) {
         return calendarService.getWorkoutCalendar(date);
+    }
+
+    public String analyzeRide(Ride ride) throws IOException, InterruptedException {
+        initializeAI();
+        return rideAnalysisService.analyzeRide(ride);
+    }
+
+    /** Publishes a fully validated plan and rebinds the calendar only after generation succeeds. */
+    public TrainingPlan generateTrainingPlan() throws IOException, InterruptedException {
+        initializeAI();
+        TrainingPlan generated = trainingPlanGenerator.generatePlan();
+        WorkoutCalendarService nextCalendar = new WorkoutCalendarService(generated, rideHistory);
+        generated.addObserver(nextCalendar);
+        if (trainingPlan != null) {
+            trainingPlan.removeObserver(calendarService);
+        }
+        trainingPlan = generated;
+        calendarService = nextCalendar;
+        generated.notifyObservers();
+        return generated;
+    }
+
+    public String askAI(String question) throws IOException, InterruptedException {
+        initializeAI();
+        return aiChatService.askQuestion(question);
+    }
+
+    public String analyzeWeaknesses() throws IOException, InterruptedException {
+        initializeAI();
+        return aiChatService.analyzeWeaknesses();
+    }
+
+    public String getWeeklySummary() throws IOException, InterruptedException {
+        initializeAI();
+        return aiChatService.generateWeeklySummary();
+    }
+
+    private void initializeAI() {
+        requireProfile();
+        if (aiChatService == null) {
+            LLMClient client = Objects.requireNonNull(llmClientFactory.get(), "LLM client is required");
+            aiChatService = new AIChatService(client, contextService, profile, rideHistory);
+            rideAnalysisService = new RideAnalysisService(client, contextService, profile);
+            trainingPlanGenerator = new TrainingPlanGenerator(client, contextService, profile, rideHistory, planParser);
+        }
+    }
+
+    private static Supplier<LLMClient> clientFactory(LLMClient client) {
+        Objects.requireNonNull(client, "llmClient is required");
+        return () -> client;
     }
 
     private void applyProfile(RiderProfile values) {
