@@ -3,140 +3,248 @@ package service;
 import model.Ride;
 import model.RideHistory;
 
-import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.PushbackReader;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
-/** Imports one ride from a simple, unquoted UTF-8 summary CSV for Stage 1 F02. */
+/** Imports cycling activities from an English, metric-unit Garmin history CSV. */
 public class CSVImporter {
     private static final List<String> REQUIRED_COLUMNS = List.of(
-            "date", "distance", "duration", "avgSpeed", "avgHR", "maxHR",
-            "avgPower", "maxPower", "avgCadence");
+            "Activity Type", "Date", "Distance", "Time", "Avg Speed", "Avg HR", "Max HR",
+            "Avg Power", "Max Power", "Avg Bike Cadence");
+
+    // Add normalized Garmin activity labels here as more cycling types are supported.
+    private static final Set<String> CYCLING_TYPES = Set.of(
+            "cycling", "road cycling", "indoor cycling", "virtual cycling",
+            "mountain biking", "gravel cycling", "cyclocross", "bmx",
+            "e-biking", "e-mountain biking", "track cycling", "bike commuting",
+            "bike touring", "hand cycling");
 
     /**
-     * Reads and closes the entire file, validates a Ride, then adds it to history.
-     * Header names are case-sensitive and may appear in any order. Extra columns
-     * are allowed but ignored. Quoted fields and embedded newlines are unsupported.
+     * Parses and closes the entire file before adding any rides to history.
+     * Returns an unmodifiable list in CSV order. Missing mapped measurements are
+     * rejected because Ride has no representation for unknown values.
      *
-     * @throws IllegalArgumentException if the path or history is null
-     * @throws IOException if reading fails or the CSV contains invalid data
+     * @throws IllegalArgumentException if path or history is null
+     * @throws IOException if reading, CSV parsing, or cycling-row validation fails
      */
-    public Ride importRide(Path filePath, RideHistory rideHistory) throws IOException {
+    public List<Ride> importRide(Path filePath, RideHistory rideHistory) throws IOException {
         if (filePath == null || rideHistory == null) {
             throw new IllegalArgumentException("filePath and rideHistory are required.");
         }
-
-        Ride ride;
+        List<Ride> rides;
         try {
-            ride = readRide(filePath);
+            rides = readRides(filePath);
         } catch (IOException exception) {
-            throw new IOException("Cannot import ride from " + filePath + ": "
+            throw new IOException("Cannot import Garmin rides from " + filePath + ": "
                     + exception.getMessage(), exception);
         }
-        // This is the only history mutation, after parsing, validation, and file close succeed.
-        rideHistory.addRide(ride);
-        return ride;
+        // Parsing, validation, and file close have all succeeded before history changes.
+        for (Ride ride : rides) {
+            rideHistory.addRide(ride);
+        }
+        return rides;
     }
 
-    private Ride readRide(Path filePath) throws IOException {
-        try (BufferedReader reader = Files.newBufferedReader(filePath, StandardCharsets.UTF_8)) {
-            String headerLine = reader.readLine();
-            if (headerLine == null) {
+    private List<Ride> readRides(Path filePath) throws IOException {
+        try (PushbackReader reader = new PushbackReader(
+                Files.newBufferedReader(filePath, StandardCharsets.UTF_8), 1)) {
+            int first = reader.read();
+            if (first != -1 && first != '\uFEFF') {
+                reader.unread(first);
+            }
+            List<String> headers = readRow(reader, 1);
+            if (headers == null) {
                 throw new IOException("Missing header row.");
             }
-            // Accept the UTF-8 byte-order mark emitted by some spreadsheet exporters.
-            if (headerLine.startsWith("\uFEFF")) {
-                headerLine = headerLine.substring(1);
-            }
-            String[] headers = splitRow(headerLine, "Header row");
             Map<String, Integer> columns = new HashMap<>();
-            for (int i = 0; i < headers.length; i++) {
-                if (headers[i].isBlank()) {
-                    throw new IOException("Blank column name at position " + (i + 1) + ".");
+            for (int i = 0; i < headers.size(); i++) {
+                String name = headers.get(i).strip();
+                if (name.isEmpty()) {
+                    throw new IOException("Blank header at column " + (i + 1) + ".");
                 }
-                if (columns.putIfAbsent(headers[i], i) != null) {
-                    throw new IOException("Duplicate column: " + headers[i]);
-                }
-            }
-            for (String required : REQUIRED_COLUMNS) {
-                if (!columns.containsKey(required)) {
-                    throw new IOException("Missing required column: " + required);
+                if (columns.putIfAbsent(name, i) != null) {
+                    throw new IOException("Duplicate column: " + name);
                 }
             }
-
-            String dataLine = reader.readLine();
-            if (dataLine == null || dataLine.isBlank()) {
-                throw new IOException("Exactly one non-blank ride data row is required.");
-            }
-            String[] values = splitRow(dataLine, "Ride data row");
-            if (values.length != headers.length) {
-                throw new IOException("Ride data row has " + values.length + " fields; expected "
-                        + headers.length + ".");
-            }
-            if (reader.readLine() != null) {
-                throw new IOException("Exactly one ride data row is allowed; found an additional row.");
-            }
-            for (String required : REQUIRED_COLUMNS) {
-                if (values[columns.get(required)].isBlank()) {
-                    throw new IOException("Missing or blank value for column: " + required);
+            for (String name : REQUIRED_COLUMNS) {
+                if (!columns.containsKey(name)) {
+                    throw new IOException("Missing required column: " + name);
                 }
             }
-
-            LocalDate date;
-            try {
-                date = LocalDate.parse(values[columns.get("date")]);
-            } catch (DateTimeParseException exception) {
-                throw new IOException("Invalid date; expected an ISO date such as 2026-11-07.", exception);
+            List<Ride> rides = new ArrayList<>();
+            List<String> row;
+            int rowNumber = 2;
+            while ((row = readRow(reader, rowNumber)) != null) {
+                if (!(row.size() == 1 && row.get(0).isBlank())) {
+                    if (row.size() != headers.size()) {
+                        throw new IOException("CSV row " + rowNumber + " has " + row.size()
+                                + " fields; expected " + headers.size() + ".");
+                    }
+                    try {
+                        String type = required(row, columns, "Activity Type");
+                        if (CYCLING_TYPES.contains(type.toLowerCase(Locale.ROOT))) {
+                            rides.add(parseRide(row, columns));
+                        }
+                    } catch (IllegalArgumentException exception) {
+                        throw new IOException("CSV row " + rowNumber + ": "
+                                + exception.getMessage(), exception);
+                    }
+                }
+                rowNumber++;
             }
-            try {
-                return new Ride(date,
-                        decimal(values, columns, "distance"),
-                        decimal(values, columns, "duration"),
-                        decimal(values, columns, "avgSpeed"),
-                        integer(values, columns, "avgHR"),
-                        integer(values, columns, "maxHR"),
-                        integer(values, columns, "avgPower"),
-                        integer(values, columns, "maxPower"),
-                        integer(values, columns, "avgCadence"));
-            } catch (IllegalArgumentException exception) {
-                throw new IOException("Invalid ride data: " + exception.getMessage(), exception);
-            }
+            return List.copyOf(rides);
         }
     }
 
-    private static String[] splitRow(String line, String label) throws IOException {
-        if (line.indexOf('"') >= 0) {
-            throw new IOException(label + ": quoted fields are not supported by this summary format.");
+    private static Ride parseRide(List<String> row, Map<String, Integer> columns) {
+        return new Ride(parseDate(required(row, columns, "Date")),
+                decimal(row, columns, "Distance"),
+                parseDuration(required(row, columns, "Time")),
+                decimal(row, columns, "Avg Speed"),
+                integer(row, columns, "Avg HR"), integer(row, columns, "Max HR"),
+                integer(row, columns, "Avg Power"), integer(row, columns, "Max Power"),
+                integer(row, columns, "Avg Bike Cadence"));
+    }
+
+    private static String required(List<String> row, Map<String, Integer> columns, String key) {
+        String value = row.get(columns.get(key)).strip();
+        if (value.isEmpty() || value.equals("--")) {
+            throw new IllegalArgumentException("Missing value for column '" + key
+                    + "'; Ride cannot represent unknown measurements. No zero fallback is used.");
         }
-        String[] fields = line.split(",", -1);
-        for (int i = 0; i < fields.length; i++) {
-            fields[i] = fields[i].strip();
+        return value;
+    }
+
+    private static LocalDate parseDate(String text) {
+        try {
+            // Garmin's yyyy-MM-dd HH:mm:ss, also accepting ISO T and fractional seconds.
+            if (text.length() == 10) {
+                return LocalDate.parse(text);
+            }
+            return LocalDateTime.parse(text.replace(' ', 'T')).toLocalDate();
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException("Column 'Date' requires yyyy-MM-dd HH:mm:ss"
+                    + " (or an ISO date/date-time).", exception);
         }
+    }
+
+    private static double parseDuration(String text) {
+        if (!text.matches("\\d+:[0-5]\\d:[0-5]\\d(?:\\.\\d+)?")) {
+            throw new IllegalArgumentException("Column 'Time' requires HH:MM:SS"
+                    + " with optional fractional seconds.");
+        }
+        String[] parts = text.split(":");
+        double seconds = Double.parseDouble(parts[0]) * 3600
+                + Integer.parseInt(parts[1]) * 60 + Double.parseDouble(parts[2]);
+        if (!Double.isFinite(seconds) || seconds <= 0) {
+            throw new IllegalArgumentException("Column 'Time' must be finite and positive.");
+        }
+        return seconds;
+    }
+
+    private static BigDecimal number(List<String> row, Map<String, Integer> columns, String key) {
+        String text = required(row, columns, key);
+        // English decimals; grouping commas are accepted only in correctly grouped numbers.
+        if (!text.matches("[+-]?(?:\\d+|\\d{1,3}(?:,\\d{3})+)(?:\\.\\d+)?")) {
+            throw new IllegalArgumentException("Column '" + key + "' requires a numeric value.");
+        }
+        return new BigDecimal(text.replace(",", ""));
+    }
+
+    private static double decimal(List<String> row, Map<String, Integer> columns, String key) {
+        double value = number(row, columns, key).doubleValue();
+        if (!Double.isFinite(value) || value < 0) {
+            throw new IllegalArgumentException("Column '" + key + "' must be finite and non-negative.");
+        }
+        return value;
+    }
+
+    private static int integer(List<String> row, Map<String, Integer> columns, String key) {
+        try {
+            int value = number(row, columns, key).intValueExact();
+            if (value < 0) {
+                throw new IllegalArgumentException("Column '" + key + "' must not be negative.");
+            }
+            return value;
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException("Column '" + key
+                    + "' requires a whole number within the int range; values are not rounded.", exception);
+        }
+    }
+
+    /** Reads one logical CSV record, including escaped quotes and embedded line breaks. */
+    private static List<String> readRow(PushbackReader reader, int rowNumber) throws IOException {
+        List<String> fields = new ArrayList<>();
+        StringBuilder field = new StringBuilder();
+        boolean quoted = false;
+        boolean closedQuote = false;
+        boolean sawCharacter = false;
+        int character;
+        while ((character = reader.read()) != -1) {
+            sawCharacter = true;
+            char ch = (char) character;
+            if (quoted) {
+                if (ch == '"') {
+                    int next = reader.read();
+                    if (next == '"') {
+                        field.append('"');
+                    } else {
+                        quoted = false;
+                        closedQuote = true;
+                        if (next != -1) {
+                            reader.unread(next);
+                        }
+                    }
+                } else {
+                    field.append(ch);
+                }
+            } else if (ch == ',' || ch == '\n' || ch == '\r') {
+                fields.add(field.toString());
+                field.setLength(0);
+                closedQuote = false;
+                if (ch != ',') {
+                    if (ch == '\r') {
+                        int next = reader.read();
+                        if (next != '\n' && next != -1) {
+                            reader.unread(next);
+                        }
+                    }
+                    return fields;
+                }
+            } else if (closedQuote) {
+                if (ch != ' ' && ch != '\t') {
+                    throw new IOException("CSV row " + rowNumber + ": unexpected character after closing quote.");
+                }
+            } else if (ch == '"') {
+                if (!field.toString().isBlank()) {
+                    throw new IOException("CSV row " + rowNumber + ": quote inside an unquoted field.");
+                }
+                field.setLength(0);
+                quoted = true;
+            } else {
+                field.append(ch);
+            }
+        }
+        if (quoted) {
+            throw new IOException("CSV row " + rowNumber + ": unclosed quoted field.");
+        }
+        if (!sawCharacter) {
+            return null;
+        }
+        fields.add(field.toString());
         return fields;
-    }
-
-    private static double decimal(String[] values, Map<String, Integer> columns, String key)
-            throws IOException {
-        try {
-            return Double.parseDouble(values[columns.get(key)]);
-        } catch (NumberFormatException exception) {
-            throw new IOException("Column " + key + " requires a number.", exception);
-        }
-    }
-
-    private static int integer(String[] values, Map<String, Integer> columns, String key)
-            throws IOException {
-        try {
-            return Integer.parseInt(values[columns.get(key)]);
-        } catch (NumberFormatException exception) {
-            throw new IOException("Column " + key + " requires a whole number within the int range.", exception);
-        }
     }
 }
