@@ -9,7 +9,7 @@ public class RideHistory {
     private final List<Ride> rides = new ArrayList<>();
 
     /**
-     * Adds a ride in insertion order; duplicate entries are allowed.
+     * Adds a ride in insertion order unless an equivalent ride already exists.
      *
      * @throws IllegalArgumentException if the ride is null
      */
@@ -17,7 +17,21 @@ public class RideHistory {
         if (ride == null) {
             throw new IllegalArgumentException("ride is required.");
         }
-        rides.add(ride);
+        if (!containsEquivalentRide(ride)) {
+            rides.add(ride);
+        }
+    }
+
+    /** Exact summary identity: date, duration (seconds), distance (km), average power and HR. */
+    public boolean containsEquivalentRide(Ride ride) {
+        if (ride == null) {
+            throw new IllegalArgumentException("ride is required.");
+        }
+        return rides.stream().anyMatch(existing -> existing.getDate().equals(ride.getDate())
+                && existing.getDuration() == ride.getDuration()
+                && existing.getDistance() == ride.getDistance()
+                && existing.getAvgPower() == ride.getAvgPower()
+                && existing.getAvgHR() == ride.getAvgHR());
     }
 
     /** Returns an unmodifiable snapshot of all rides in insertion order. */

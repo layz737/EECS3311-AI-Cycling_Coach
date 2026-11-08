@@ -6,6 +6,7 @@ import service.CSVImporter;
 import service.PersonalBestService;
 import service.RideComparisonService;
 import storage.ProfileStorage;
+import storage.RideHistoryStorage;
 import ui.CyclingCoachCLI;
 import ui.CyclingCoachGUI;
 
@@ -30,7 +31,7 @@ public final class Main {
             return;
         }
 
-        CyclingCoachController controller = createController(new ProfileStorage());
+        CyclingCoachController controller = createController(new ProfileStorage(), new RideHistoryStorage());
         if (cli) {
             new CyclingCoachCLI(controller).start();
         } else {
@@ -46,7 +47,12 @@ public final class Main {
      * creates the shared DeepSeek client and the three AI services on first AI use.
      */
     static CyclingCoachController createController(ProfileStorage storage) {
+        return createController(storage, new RideHistoryStorage());
+    }
+
+    static CyclingCoachController createController(ProfileStorage storage, RideHistoryStorage historyStorage) {
         Objects.requireNonNull(storage, "storage is required");
+        Objects.requireNonNull(historyStorage, "historyStorage is required");
         RiderProfile profile = null;
         try {
             profile = storage.loadProfile().orElse(null);
@@ -55,9 +61,16 @@ public final class Main {
             System.err.println("Could not load the saved profile: " + exception.getMessage());
         }
 
-        RideHistory history = new RideHistory();
+        RideHistory history;
+        try {
+            history = historyStorage.loadRideHistory();
+        } catch (IOException exception) {
+            System.err.println(exception.getMessage());
+            // Keep startup usable, but retain the failed-load storage guard against overwrites.
+            history = new RideHistory();
+        }
         TrainingPlan plan = new TrainingPlan();
         return new CyclingCoachController(profile, history, plan,
-                new CSVImporter(), new RideComparisonService(), new PersonalBestService(), storage);
+                new CSVImporter(), new RideComparisonService(), new PersonalBestService(), storage, historyStorage);
     }
 }

@@ -18,6 +18,7 @@ import service.ProgressTracker;
 import service.RideComparisonService;
 import service.WorkoutCalendarService;
 import storage.ProfileStorage;
+import storage.RideHistoryStorage;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -43,6 +44,7 @@ public class CyclingCoachController {
     private final PersonalBestService personalBestService;
     private WorkoutCalendarService calendarService;
     private final ProfileStorage profileStorage;
+    private final RideHistoryStorage rideHistoryStorage;
     private final Supplier<LLMClient> llmClientFactory;
     private final RiderContextService contextService;
     private final TrainingPlanParser planParser;
@@ -50,10 +52,14 @@ public class CyclingCoachController {
     private RideAnalysisService rideAnalysisService;
     private TrainingPlanGenerator trainingPlanGenerator;
 
-    /** Creates an empty session using default local profile storage. Call loadProfile() at startup. */
+    /** Loads local ride history; profile loading remains available through loadProfile(). */
     public CyclingCoachController() {
-        this(null, new RideHistory(), null, new CSVImporter(), new RideComparisonService(),
-                new PersonalBestService(), new ProfileStorage());
+        this(new ProfileStorage(), new RideHistoryStorage());
+    }
+
+    private CyclingCoachController(ProfileStorage profileStorage, RideHistoryStorage rideHistoryStorage) {
+        this(null, loadHistory(rideHistoryStorage), null, new CSVImporter(), new RideComparisonService(),
+                new PersonalBestService(), profileStorage, rideHistoryStorage);
     }
 
     /**
@@ -66,8 +72,18 @@ public class CyclingCoachController {
                                  RideComparisonService comparisonService,
                                  PersonalBestService personalBestService, ProfileStorage profileStorage) {
         this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
+                profileStorage, new RideHistoryStorage());
+    }
+
+    /** Injects the same storage instance used to load the shared history at startup. */
+    public CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
+                                 TrainingPlan trainingPlan, CSVImporter csvImporter,
+                                 RideComparisonService comparisonService,
+                                 PersonalBestService personalBestService, ProfileStorage profileStorage,
+                                 RideHistoryStorage rideHistoryStorage) {
+        this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
                 profileStorage, () -> new DeepSeekAdapter(new DeepSeekService()),
-                new RiderContextService(), new TrainingPlanParser());
+                new RiderContextService(), new TrainingPlanParser(), rideHistoryStorage);
     }
 
     /** Injects a provider-independent LLM client and shared AI infrastructure. */
@@ -78,7 +94,18 @@ public class CyclingCoachController {
                                  LLMClient llmClient, RiderContextService contextService,
                                  TrainingPlanParser planParser) {
         this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
-                profileStorage, clientFactory(llmClient), contextService, planParser);
+                profileStorage, llmClient, contextService, planParser, new RideHistoryStorage());
+    }
+
+    /** Full injection constructor, including isolated persistence and provider-independent AI. */
+    public CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
+                                 TrainingPlan trainingPlan, CSVImporter csvImporter,
+                                 RideComparisonService comparisonService,
+                                 PersonalBestService personalBestService, ProfileStorage profileStorage,
+                                 LLMClient llmClient, RiderContextService contextService,
+                                 TrainingPlanParser planParser, RideHistoryStorage rideHistoryStorage) {
+        this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
+                profileStorage, clientFactory(llmClient), contextService, planParser, rideHistoryStorage);
     }
 
     private CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
@@ -86,13 +113,14 @@ public class CyclingCoachController {
                                   RideComparisonService comparisonService,
                                   PersonalBestService personalBestService, ProfileStorage profileStorage,
                                   Supplier<LLMClient> llmClientFactory, RiderContextService contextService,
-                                  TrainingPlanParser planParser) {
+                                  TrainingPlanParser planParser, RideHistoryStorage rideHistoryStorage) {
         this.rideHistory = Objects.requireNonNull(rideHistory, "rideHistory is required");
         this.trainingPlan = trainingPlan;
         this.csvImporter = Objects.requireNonNull(csvImporter, "csvImporter is required");
         this.comparisonService = Objects.requireNonNull(comparisonService, "comparisonService is required");
         this.personalBestService = Objects.requireNonNull(personalBestService, "personalBestService is required");
         this.profileStorage = Objects.requireNonNull(profileStorage, "profileStorage is required");
+        this.rideHistoryStorage = Objects.requireNonNull(rideHistoryStorage, "rideHistoryStorage is required");
         this.llmClientFactory = Objects.requireNonNull(llmClientFactory, "llmClientFactory is required");
         this.contextService = Objects.requireNonNull(contextService, "contextService is required");
         this.planParser = Objects.requireNonNull(planParser, "planParser is required");
@@ -152,9 +180,24 @@ public class CyclingCoachController {
                 targetWeight, targetFTP, mainGoal);
     }
 
-    /** Delegates Garmin parsing and all-or-nothing validation to CSVImporter. */
+    /** Stages parsing/deduplication, saves first, then commits new rides to the shared model. */
     public List<Ride> importRides(Path filePath) throws IOException {
-        return csvImporter.importRide(filePath, rideHistory);
+        RideHistory staged = new RideHistory();
+        rideHistory.getRides().forEach(staged::addRide);
+        List<Ride> imported = csvImporter.importRide(filePath, staged);
+        rideHistoryStorage.saveRideHistory(staged);
+        imported.forEach(rideHistory::addRide);
+        return imported;
+    }
+
+    private static RideHistory loadHistory(RideHistoryStorage storage) {
+        try {
+            return storage.loadRideHistory();
+        } catch (IOException exception) {
+            System.err.println(exception.getMessage());
+            // The same storage instance blocks saves after a failed load.
+            return new RideHistory();
+        }
     }
 
     /** Returns the model's unmodifiable snapshot, rather than exposing mutable history. */

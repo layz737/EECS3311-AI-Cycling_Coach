@@ -4,6 +4,7 @@ import controller.CyclingCoachController;
 import model.Ride;
 import model.TrainingPlan;
 import model.Workout;
+import util.DurationFormatter;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -381,8 +382,8 @@ public class CyclingCoachGUI {
         selector.setRenderer((list, value, index, selected, focus) -> {
             JLabel label = (JLabel) renderer.getListCellRendererComponent(list, value, index, selected, focus);
             label.setText(value == null ? "No rides available - import a CSV first"
-                    : String.format(Locale.ROOT, "%s | %.2f km | %.2f min | %d W average",
-                    value.getDate(), value.getDistance(), value.getDuration() / 60, value.getAvgPower()));
+                    : String.format(Locale.ROOT, "%s | %.2f km | %s | %d W average",
+                    value.getDate(), value.getDistance(), DurationFormatter.format(value.getDuration()), value.getAvgPower()));
             return label;
         });
     }
@@ -398,8 +399,8 @@ public class CyclingCoachGUI {
     private static String formatPlan(TrainingPlan plan) {
         StringBuilder text = new StringBuilder("Generated weekly plan - active workouts:\n\n");
         for (Workout workout : plan.getWorkouts()) {
-            text.append(String.format(Locale.ROOT, "%s | %s | %.2f min | %d W\n%s\n\n",
-                    workout.getDate(), workout.getType(), workout.getDuration() / 60,
+            text.append(String.format(Locale.ROOT, "%s | %s | %s | %d W\n%s\n\n",
+                    workout.getDate(), workout.getType(), DurationFormatter.format(workout.getDuration()),
                     workout.getTargetPower(), workout.getDescription()));
         }
         return text.append("Days without active workouts are rest days in the generated week.").toString();

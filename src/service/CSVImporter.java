@@ -34,7 +34,8 @@ public class CSVImporter {
 
     /**
      * Parses and closes the entire file before adding any rides to history.
-     * Returns an unmodifiable list in CSV order. Missing mapped measurements are
+     * Returns only newly added rides as an unmodifiable list in CSV order.
+     * Existing equivalents and repeated rows are skipped. Missing mapped measurements are
      * rejected because Ride has no representation for unknown values.
      *
      * @throws IllegalArgumentException if path or history is null
@@ -51,11 +52,16 @@ public class CSVImporter {
             throw new IOException("Cannot import Garmin rides from " + filePath + ": "
                     + exception.getMessage(), exception);
         }
-        // Parsing, validation, and file close have all succeeded before history changes.
+        RideHistory additions = new RideHistory();
         for (Ride ride : rides) {
-            rideHistory.addRide(ride);
+            if (!rideHistory.containsEquivalentRide(ride)) {
+                additions.addRide(ride);
+            }
         }
-        return rides;
+        List<Ride> imported = additions.getRides();
+        // Every cycling row, including duplicate rows, was validated before any mutation.
+        imported.forEach(rideHistory::addRide);
+        return imported;
     }
 
     private List<Ride> readRides(Path filePath) throws IOException {

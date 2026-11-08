@@ -5,6 +5,7 @@ import model.RideHistory;
 import model.TrainingPlan;
 import model.Workout;
 import observer.Observer;
+import util.DurationFormatter;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -70,8 +71,8 @@ public class WorkoutCalendarService implements Observer {
             for (Workout workout : workouts) {
                 if (workout.getDate().equals(day)) {
                     calendar.append(String.format(Locale.ROOT,
-                            "\n  Planned workout: %s; duration: %.2f s; target power: %d W; %s",
-                            workout.getType(), workout.getDuration(), workout.getTargetPower(),
+                            "\n  Planned workout: %s; duration: %s; target power: %d W; %s",
+                            workout.getType(), DurationFormatter.format(workout.getDuration()), workout.getTargetPower(),
                             workout.getDescription()));
                     hasEntries = true;
                 }
@@ -79,8 +80,8 @@ public class WorkoutCalendarService implements Observer {
             for (Ride ride : rides) {
                 if (ride.getDate().equals(day)) {
                     calendar.append(String.format(Locale.ROOT,
-                            "\n  Completed ride: distance: %.2f km; duration: %.2f s; average speed: %.2f km/h",
-                            ride.getDistance(), ride.getDuration(), ride.getAvgSpeed()));
+                            "\n  Completed ride: distance: %.2f km; duration: %s; average speed: %.2f km/h",
+                            ride.getDistance(), DurationFormatter.format(ride.getDuration()), ride.getAvgSpeed()));
                     hasEntries = true;
                 }
             }

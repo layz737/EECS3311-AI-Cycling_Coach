@@ -4,6 +4,7 @@ import controller.CyclingCoachController;
 import model.Ride;
 import model.TrainingPlan;
 import model.Workout;
+import util.DurationFormatter;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -152,8 +153,8 @@ public class CyclingCoachCLI {
         }
         for (int i = 0; i < rides.size(); i++) {
             Ride ride = rides.get(i);
-            output.printf(Locale.ROOT, "%d. %s | %.2f km | %.2f min | average power %d W%n",
-                    i + 1, ride.getDate(), ride.getDistance(), ride.getDuration() / 60, ride.getAvgPower());
+            output.printf(Locale.ROOT, "%d. %s | %.2f km | %s | average power %d W%n",
+                    i + 1, ride.getDate(), ride.getDistance(), DurationFormatter.format(ride.getDuration()), ride.getAvgPower());
         }
         return rides;
     }
@@ -172,8 +173,8 @@ public class CyclingCoachCLI {
             output.println("No active workouts scheduled.");
         }
         for (Workout workout : plan.getWorkouts()) {
-            output.printf(Locale.ROOT, "%s | %s | %.2f min | %d W | %s%n",
-                    workout.getDate(), workout.getType(), workout.getDuration() / 60,
+            output.printf(Locale.ROOT, "%s | %s | %s | %d W | %s%n",
+                    workout.getDate(), workout.getType(), DurationFormatter.format(workout.getDuration()),
                     workout.getTargetPower(), workout.getDescription());
         }
         output.println("Days without active workouts are rest days in this plan. Use option 10 to view the week.");

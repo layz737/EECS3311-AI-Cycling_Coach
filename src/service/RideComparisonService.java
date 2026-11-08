@@ -1,6 +1,7 @@
 package service;
 
 import model.Ride;
+import util.DurationFormatter;
 
 import java.util.Locale;
 
@@ -22,7 +23,10 @@ public class RideComparisonService {
                 "Ride 1: " + ride1.getDate() + "; Ride 2: " + ride2.getDate(),
                 "Differences are ride 2 minus ride 1.",
                 metric("Distance", ride1.getDistance(), ride2.getDistance(), "km"),
-                metric("Duration", ride1.getDuration(), ride2.getDuration(), "s"),
+                "Duration: " + DurationFormatter.format(ride1.getDuration()) + " -> "
+                        + DurationFormatter.format(ride2.getDuration()) + "; difference: "
+                        + (ride2.getDuration() < ride1.getDuration() ? "-" : "+")
+                        + DurationFormatter.format(Math.abs(ride2.getDuration() - ride1.getDuration())),
                 metric("Average speed", ride1.getAvgSpeed(), ride2.getAvgSpeed(), "km/h"),
                 metric("Average heart rate", ride1.getAvgHR(), ride2.getAvgHR(), "bpm"),
                 metric("Maximum heart rate", ride1.getMaxHR(), ride2.getMaxHR(), "bpm"),
