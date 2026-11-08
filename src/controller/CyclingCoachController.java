@@ -8,6 +8,7 @@ import model.FitnessRecord;
 import model.RideHistory;
 import model.RiderProfile;
 import model.TrainingPlan;
+import model.Workout;
 import service.CSVImporter;
 import service.AIChatService;
 import service.RideAnalysisService;
@@ -21,6 +22,7 @@ import service.WorkoutCalendarService;
 import storage.ProfileStorage;
 import storage.RideHistoryStorage;
 import storage.FitnessRecordStorage;
+import storage.TrainingPlanStorage;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -48,6 +50,7 @@ public class CyclingCoachController {
     private final ProfileStorage profileStorage;
     private final RideHistoryStorage rideHistoryStorage;
     private final FitnessRecordStorage fitnessRecordStorage;
+    private final TrainingPlanStorage trainingPlanStorage;
     private final List<FitnessRecord> loadedFitnessRecords;
     private IOException fitnessHistoryFailure;
     private final Supplier<LLMClient> llmClientFactory;
@@ -59,12 +62,13 @@ public class CyclingCoachController {
 
     /** Loads local ride history; profile loading remains available through loadProfile(). */
     public CyclingCoachController() {
-        this(new ProfileStorage(), new RideHistoryStorage());
+        this(new ProfileStorage(), new RideHistoryStorage(), new TrainingPlanStorage());
     }
 
-    private CyclingCoachController(ProfileStorage profileStorage, RideHistoryStorage rideHistoryStorage) {
-        this(null, loadHistory(rideHistoryStorage), null, new CSVImporter(), new RideComparisonService(),
-                new PersonalBestService(), profileStorage, rideHistoryStorage);
+    private CyclingCoachController(ProfileStorage profileStorage, RideHistoryStorage rideHistoryStorage,
+                                   TrainingPlanStorage trainingPlanStorage) {
+        this(null, loadHistory(rideHistoryStorage), loadPlan(trainingPlanStorage), new CSVImporter(), new RideComparisonService(),
+                new PersonalBestService(), profileStorage, rideHistoryStorage, new FitnessRecordStorage(), trainingPlanStorage);
     }
 
     /**
@@ -97,8 +101,19 @@ public class CyclingCoachController {
                                  PersonalBestService personalBestService, ProfileStorage profileStorage,
                                  RideHistoryStorage rideHistoryStorage, FitnessRecordStorage fitnessRecordStorage) {
         this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
+                profileStorage, rideHistoryStorage, fitnessRecordStorage, new TrainingPlanStorage());
+    }
+
+    /** Uses the loaded active plan and its storage, preserving the calendar's model identity. */
+    public CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
+                                 TrainingPlan trainingPlan, CSVImporter csvImporter,
+                                 RideComparisonService comparisonService,
+                                 PersonalBestService personalBestService, ProfileStorage profileStorage,
+                                 RideHistoryStorage rideHistoryStorage, FitnessRecordStorage fitnessRecordStorage,
+                                 TrainingPlanStorage trainingPlanStorage) {
+        this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
                 profileStorage, () -> new DeepSeekAdapter(new DeepSeekService()),
-                new RiderContextService(), new TrainingPlanParser(), rideHistoryStorage, fitnessRecordStorage);
+                new RiderContextService(), new TrainingPlanParser(), rideHistoryStorage, fitnessRecordStorage, trainingPlanStorage);
     }
 
     /** Injects a provider-independent LLM client and shared AI infrastructure. */
@@ -132,7 +147,21 @@ public class CyclingCoachController {
                                  TrainingPlanParser planParser, RideHistoryStorage rideHistoryStorage,
                                  FitnessRecordStorage fitnessRecordStorage) {
         this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
-                profileStorage, clientFactory(llmClient), contextService, planParser, rideHistoryStorage, fitnessRecordStorage);
+                profileStorage, llmClient, contextService, planParser, rideHistoryStorage, fitnessRecordStorage,
+                new TrainingPlanStorage());
+    }
+
+    /** Full injection, including active-plan persistence. */
+    public CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
+                                 TrainingPlan trainingPlan, CSVImporter csvImporter,
+                                 RideComparisonService comparisonService,
+                                 PersonalBestService personalBestService, ProfileStorage profileStorage,
+                                 LLMClient llmClient, RiderContextService contextService,
+                                 TrainingPlanParser planParser, RideHistoryStorage rideHistoryStorage,
+                                 FitnessRecordStorage fitnessRecordStorage, TrainingPlanStorage trainingPlanStorage) {
+        this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
+                profileStorage, clientFactory(llmClient), contextService, planParser, rideHistoryStorage,
+                fitnessRecordStorage, trainingPlanStorage);
     }
 
     private CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
@@ -141,7 +170,7 @@ public class CyclingCoachController {
                                   PersonalBestService personalBestService, ProfileStorage profileStorage,
                                   Supplier<LLMClient> llmClientFactory, RiderContextService contextService,
                                   TrainingPlanParser planParser, RideHistoryStorage rideHistoryStorage,
-                                  FitnessRecordStorage fitnessRecordStorage) {
+                                  FitnessRecordStorage fitnessRecordStorage, TrainingPlanStorage trainingPlanStorage) {
         this.rideHistory = Objects.requireNonNull(rideHistory, "rideHistory is required");
         this.trainingPlan = trainingPlan;
         this.csvImporter = Objects.requireNonNull(csvImporter, "csvImporter is required");
@@ -150,6 +179,7 @@ public class CyclingCoachController {
         this.profileStorage = Objects.requireNonNull(profileStorage, "profileStorage is required");
         this.rideHistoryStorage = Objects.requireNonNull(rideHistoryStorage, "rideHistoryStorage is required");
         this.fitnessRecordStorage = Objects.requireNonNull(fitnessRecordStorage, "fitnessRecordStorage is required");
+        this.trainingPlanStorage = Objects.requireNonNull(trainingPlanStorage, "trainingPlanStorage is required");
         List<FitnessRecord> fitnessRecords;
         try {
             fitnessRecords = fitnessRecordStorage.loadRecords();
@@ -245,6 +275,16 @@ public class CyclingCoachController {
         }
     }
 
+    private static TrainingPlan loadPlan(TrainingPlanStorage storage) {
+        try {
+            return storage.loadPlan();
+        } catch (IOException exception) {
+            System.err.println(exception.getMessage());
+            // Retain the same storage instance so a failed load blocks replacement saves.
+            return new TrainingPlan();
+        }
+    }
+
     /** Returns the model's unmodifiable snapshot, rather than exposing mutable history. */
     public List<Ride> getRideHistory() {
         return rideHistory.getRides();
@@ -277,6 +317,11 @@ public class CyclingCoachController {
         return calendarService.getWorkoutCalendar(date);
     }
 
+    /** Safe read access for displaying the loaded plan without generating a new one. */
+    public List<Workout> getTrainingPlanWorkouts() {
+        return trainingPlan == null ? List.of() : trainingPlan.getWorkouts();
+    }
+
     public String analyzeRide(Ride ride) throws IOException, InterruptedException {
         initializeAI();
         return rideAnalysisService.analyzeRide(ride);
@@ -286,6 +331,7 @@ public class CyclingCoachController {
     public TrainingPlan generateTrainingPlan() throws IOException, InterruptedException {
         initializeAI();
         TrainingPlan generated = trainingPlanGenerator.generatePlan();
+        trainingPlanStorage.savePlan(generated);
         WorkoutCalendarService nextCalendar = new WorkoutCalendarService(generated, rideHistory);
         generated.addObserver(nextCalendar);
         if (trainingPlan != null) {

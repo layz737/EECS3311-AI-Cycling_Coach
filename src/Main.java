@@ -8,6 +8,7 @@ import service.RideComparisonService;
 import storage.ProfileStorage;
 import storage.RideHistoryStorage;
 import storage.FitnessRecordStorage;
+import storage.TrainingPlanStorage;
 import ui.CyclingCoachCLI;
 import ui.CyclingCoachGUI;
 
@@ -33,7 +34,7 @@ public final class Main {
         }
 
         CyclingCoachController controller = createController(new ProfileStorage(), new RideHistoryStorage(),
-                new FitnessRecordStorage());
+                new FitnessRecordStorage(), new TrainingPlanStorage());
         if (cli) {
             new CyclingCoachCLI(controller).start();
         } else {
@@ -58,9 +59,15 @@ public final class Main {
 
     static CyclingCoachController createController(ProfileStorage storage, RideHistoryStorage historyStorage,
                                                    FitnessRecordStorage fitnessStorage) {
+        return createController(storage, historyStorage, fitnessStorage, new TrainingPlanStorage());
+    }
+
+    static CyclingCoachController createController(ProfileStorage storage, RideHistoryStorage historyStorage,
+                                                   FitnessRecordStorage fitnessStorage, TrainingPlanStorage planStorage) {
         Objects.requireNonNull(storage, "storage is required");
         Objects.requireNonNull(historyStorage, "historyStorage is required");
         Objects.requireNonNull(fitnessStorage, "fitnessStorage is required");
+        Objects.requireNonNull(planStorage, "planStorage is required");
         RiderProfile profile = null;
         try {
             profile = storage.loadProfile().orElse(null);
@@ -77,8 +84,16 @@ public final class Main {
             // Keep startup usable, but retain the failed-load storage guard against overwrites.
             history = new RideHistory();
         }
-        TrainingPlan plan = new TrainingPlan();
+        TrainingPlan plan;
+        try {
+            plan = planStorage.loadPlan();
+        } catch (IOException exception) {
+            System.err.println(exception.getMessage());
+            // The failed-load guard prevents this empty fallback from overwriting saved data.
+            plan = new TrainingPlan();
+        }
         return new CyclingCoachController(profile, history, plan,
-                new CSVImporter(), new RideComparisonService(), new PersonalBestService(), storage, historyStorage, fitnessStorage);
+                new CSVImporter(), new RideComparisonService(), new PersonalBestService(), storage,
+                historyStorage, fitnessStorage, planStorage);
     }
 }

@@ -2,7 +2,6 @@ package ui;
 
 import controller.CyclingCoachController;
 import model.Ride;
-import model.TrainingPlan;
 import model.Workout;
 import util.DurationFormatter;
 
@@ -193,8 +192,9 @@ public class CyclingCoachGUI {
     private JPanel trainingPanel() {
         JTextArea output = output();
         Consumer<String> result = sink(output);
+        result.accept(formatPlan(controller.getTrainingPlanWorkouts()));
         JButton generate = action("Generate Weekly Plan", result,
-                () -> runTask(() -> formatPlan(controller.generateTrainingPlan()), result, null));
+                () -> runTask(() -> formatPlan(controller.generateTrainingPlan().getWorkouts()), result, null));
         return resultCard("Weekly Training Plan", controls(generate), output);
     }
 
@@ -396,14 +396,17 @@ public class CyclingCoachGUI {
         return ride;
     }
 
-    private static String formatPlan(TrainingPlan plan) {
-        StringBuilder text = new StringBuilder("Generated weekly plan - active workouts:\n\n");
-        for (Workout workout : plan.getWorkouts()) {
+    private static String formatPlan(List<Workout> workouts) {
+        if (workouts.isEmpty()) {
+            return "No active workouts in the current training plan.";
+        }
+        StringBuilder text = new StringBuilder("Current weekly plan - active workouts:\n\n");
+        for (Workout workout : workouts) {
             text.append(String.format(Locale.ROOT, "%s | %s | %s | %d W\n%s\n\n",
                     workout.getDate(), workout.getType(), DurationFormatter.format(workout.getDuration()),
                     workout.getTargetPower(), workout.getDescription()));
         }
-        return text.append("Days without active workouts are rest days in the generated week.").toString();
+        return text.append("Days without active workouts are rest days in the plan's week.").toString();
     }
 
     private static JPanel panel(String title) {
