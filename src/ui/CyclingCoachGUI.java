@@ -42,7 +42,8 @@ import java.util.function.Consumer;
 public class CyclingCoachGUI {
     private final CyclingCoachController controller;
     private final List<JButton> operationButtons = new ArrayList<>();
-    private final JTextField[] profileFields = new JTextField[8];
+    private final JTextField[] profileFields = new JTextField[7];
+    private final JComboBox<String> mainGoal = new JComboBox<>(new String[]{"Improve FTP", "Lose Weight"});
     private final JComboBox<Ride> analysisRide = new JComboBox<>();
     private final JComboBox<Ride> firstRide = new JComboBox<>();
     private final JComboBox<Ride> secondRide = new JComboBox<>();
@@ -112,8 +113,8 @@ public class CyclingCoachGUI {
 
     private JPanel profilePanel() {
         String[] labels = {"Weight (kg)", "FTP (W)", "Maximum HR (bpm)", "Resting HR (bpm)",
-                "Available training days per week", "Target weight (kg)", "Target FTP (W)", "Main goal"};
-        JPanel form = new JPanel(new GridLayout(labels.length, 2, 10, 10));
+                "Available training days per week", "Target weight (kg)", "Target FTP (W)"};
+        JPanel form = new JPanel(new GridLayout(labels.length + 1, 2, 10, 10));
         for (int i = 0; i < labels.length; i++) {
             profileFields[i] = new JTextField(24);
             JLabel label = new JLabel(labels[i]);
@@ -121,6 +122,10 @@ public class CyclingCoachGUI {
             form.add(label);
             form.add(profileFields[i]);
         }
+        JLabel goalLabel = new JLabel("Main goal");
+        goalLabel.setLabelFor(mainGoal);
+        form.add(goalLabel);
+        form.add(mainGoal);
         Consumer<String> result = text -> profileStatus.setText("Status: " + text);
         JButton save = action("Save / Update Profile", result, () -> {
             // Capture and parse Swing inputs on the EDT before scheduling model work.
@@ -131,7 +136,7 @@ public class CyclingCoachGUI {
             int days = integer(profileFields[4], "Available training days");
             double targetWeight = decimal(profileFields[5], "Target weight");
             int targetFTP = integer(profileFields[6], "Target FTP");
-            String goal = profileFields[7].getText().strip();
+            String goal = (String) mainGoal.getSelectedItem();
             runTask(() -> {
                 controller.setUpProfile(weight, ftp, maxHR, restingHR, days, targetWeight, targetFTP, goal);
                 return "Rider profile saved.";
@@ -263,10 +268,12 @@ public class CyclingCoachGUI {
             String[] values = {Double.toString(profile.getWeight()), Integer.toString(profile.getFtp()),
                     Integer.toString(profile.getMaxHR()), Integer.toString(profile.getRestingHR()),
                     Integer.toString(profile.getAvailableTrainingDays()), Double.toString(profile.getTargetWeight()),
-                    Integer.toString(profile.getTargetFTP()), profile.getMainGoal()};
+                    Integer.toString(profile.getTargetFTP())};
             for (int i = 0; i < values.length; i++) {
                 profileFields[i].setText(values[i]);
             }
+            // Recognize saved options case-insensitively; legacy free text defaults to Improve FTP.
+            mainGoal.setSelectedIndex("Lose Weight".equalsIgnoreCase(profile.getMainGoal().strip()) ? 1 : 0);
         });
     }
 
