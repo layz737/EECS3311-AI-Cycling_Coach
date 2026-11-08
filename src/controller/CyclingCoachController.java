@@ -4,6 +4,7 @@ import ai.DeepSeekAdapter;
 import ai.DeepSeekService;
 import ai.LLMClient;
 import model.Ride;
+import model.FitnessRecord;
 import model.RideHistory;
 import model.RiderProfile;
 import model.TrainingPlan;
@@ -19,6 +20,7 @@ import service.RideComparisonService;
 import service.WorkoutCalendarService;
 import storage.ProfileStorage;
 import storage.RideHistoryStorage;
+import storage.FitnessRecordStorage;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -45,6 +47,9 @@ public class CyclingCoachController {
     private WorkoutCalendarService calendarService;
     private final ProfileStorage profileStorage;
     private final RideHistoryStorage rideHistoryStorage;
+    private final FitnessRecordStorage fitnessRecordStorage;
+    private final List<FitnessRecord> loadedFitnessRecords;
+    private IOException fitnessHistoryFailure;
     private final Supplier<LLMClient> llmClientFactory;
     private final RiderContextService contextService;
     private final TrainingPlanParser planParser;
@@ -82,8 +87,18 @@ public class CyclingCoachController {
                                  PersonalBestService personalBestService, ProfileStorage profileStorage,
                                  RideHistoryStorage rideHistoryStorage) {
         this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
+                profileStorage, rideHistoryStorage, new FitnessRecordStorage());
+    }
+
+    /** Loads fitness snapshots before constructing and registering the session's tracker. */
+    public CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
+                                 TrainingPlan trainingPlan, CSVImporter csvImporter,
+                                 RideComparisonService comparisonService,
+                                 PersonalBestService personalBestService, ProfileStorage profileStorage,
+                                 RideHistoryStorage rideHistoryStorage, FitnessRecordStorage fitnessRecordStorage) {
+        this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
                 profileStorage, () -> new DeepSeekAdapter(new DeepSeekService()),
-                new RiderContextService(), new TrainingPlanParser(), rideHistoryStorage);
+                new RiderContextService(), new TrainingPlanParser(), rideHistoryStorage, fitnessRecordStorage);
     }
 
     /** Injects a provider-independent LLM client and shared AI infrastructure. */
@@ -105,7 +120,19 @@ public class CyclingCoachController {
                                  LLMClient llmClient, RiderContextService contextService,
                                  TrainingPlanParser planParser, RideHistoryStorage rideHistoryStorage) {
         this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
-                profileStorage, clientFactory(llmClient), contextService, planParser, rideHistoryStorage);
+                profileStorage, llmClient, contextService, planParser, rideHistoryStorage, new FitnessRecordStorage());
+    }
+
+    /** Full injection including fitness-history persistence. */
+    public CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
+                                 TrainingPlan trainingPlan, CSVImporter csvImporter,
+                                 RideComparisonService comparisonService,
+                                 PersonalBestService personalBestService, ProfileStorage profileStorage,
+                                 LLMClient llmClient, RiderContextService contextService,
+                                 TrainingPlanParser planParser, RideHistoryStorage rideHistoryStorage,
+                                 FitnessRecordStorage fitnessRecordStorage) {
+        this(profile, rideHistory, trainingPlan, csvImporter, comparisonService, personalBestService,
+                profileStorage, clientFactory(llmClient), contextService, planParser, rideHistoryStorage, fitnessRecordStorage);
     }
 
     private CyclingCoachController(RiderProfile profile, RideHistory rideHistory,
@@ -113,7 +140,8 @@ public class CyclingCoachController {
                                   RideComparisonService comparisonService,
                                   PersonalBestService personalBestService, ProfileStorage profileStorage,
                                   Supplier<LLMClient> llmClientFactory, RiderContextService contextService,
-                                  TrainingPlanParser planParser, RideHistoryStorage rideHistoryStorage) {
+                                  TrainingPlanParser planParser, RideHistoryStorage rideHistoryStorage,
+                                  FitnessRecordStorage fitnessRecordStorage) {
         this.rideHistory = Objects.requireNonNull(rideHistory, "rideHistory is required");
         this.trainingPlan = trainingPlan;
         this.csvImporter = Objects.requireNonNull(csvImporter, "csvImporter is required");
@@ -121,6 +149,16 @@ public class CyclingCoachController {
         this.personalBestService = Objects.requireNonNull(personalBestService, "personalBestService is required");
         this.profileStorage = Objects.requireNonNull(profileStorage, "profileStorage is required");
         this.rideHistoryStorage = Objects.requireNonNull(rideHistoryStorage, "rideHistoryStorage is required");
+        this.fitnessRecordStorage = Objects.requireNonNull(fitnessRecordStorage, "fitnessRecordStorage is required");
+        List<FitnessRecord> fitnessRecords;
+        try {
+            fitnessRecords = fitnessRecordStorage.loadRecords();
+        } catch (IOException exception) {
+            fitnessHistoryFailure = exception;
+            fitnessRecords = List.of();
+            System.err.println(exception.getMessage());
+        }
+        this.loadedFitnessRecords = fitnessRecords;
         this.llmClientFactory = Objects.requireNonNull(llmClientFactory, "llmClientFactory is required");
         this.contextService = Objects.requireNonNull(contextService, "contextService is required");
         this.planParser = Objects.requireNonNull(planParser, "planParser is required");
@@ -129,7 +167,7 @@ public class CyclingCoachController {
             trainingPlan.addObserver(calendarService);
         }
         if (profile != null) {
-            applyProfile(profile);
+            applyProfile(profile, false);
         }
     }
 
@@ -142,7 +180,7 @@ public class CyclingCoachController {
         if (saved.isEmpty()) {
             return false;
         }
-        applyProfile(saved.orElseThrow());
+        applyProfile(saved.orElseThrow(), false);
         return true;
     }
 
@@ -167,8 +205,15 @@ public class CyclingCoachController {
                              int targetFTP, String mainGoal) throws IOException {
         RiderProfile candidate = new RiderProfile(weight, ftp, maxHR, restingHR,
                 availableTrainingDays, targetWeight, targetFTP, mainGoal);
+        requireFitnessHistory();
         profileStorage.saveProfile(candidate);
-        applyProfile(candidate);
+        applyProfile(candidate, true);
+        try {
+            fitnessRecordStorage.saveRecords(progressTracker.getRecords());
+        } catch (IOException exception) {
+            throw new IOException("Profile was saved, but fitness history could not be saved: "
+                    + exception.getMessage(), exception);
+        }
     }
 
     /** Updates an existing profile; first-time creation uses setUpProfile(). */
@@ -212,6 +257,10 @@ public class CyclingCoachController {
     /** Requires a profile; the tracker supplies insufficient-history messages when needed. */
     public String getProgress() {
         requireProfile();
+        if (fitnessHistoryFailure != null) {
+            throw new IllegalStateException("Fitness history is unavailable: "
+                    + fitnessHistoryFailure.getMessage(), fitnessHistoryFailure);
+        }
         return progressTracker.getProgress();
     }
 
@@ -278,17 +327,34 @@ public class CyclingCoachController {
         return () -> client;
     }
 
-    private void applyProfile(RiderProfile values) {
+    private void applyProfile(RiderProfile values, boolean recordInitialValues) {
         if (profile == null) {
             profile = values;
-            progressTracker = new ProgressTracker(profile);
+            progressTracker = new ProgressTracker(profile, loadedFitnessRecords);
             profile.addObserver(progressTracker);
-            progressTracker.update();
+            if (fitnessHistoryFailure == null && (recordInitialValues || progressTracker.getRecords().isEmpty())) {
+                progressTracker.update();
+                if (!recordInitialValues) {
+                    try {
+                        fitnessRecordStorage.saveRecords(progressTracker.getRecords());
+                    } catch (IOException exception) {
+                        fitnessHistoryFailure = exception;
+                        System.err.println("Cannot save initial fitness baseline: " + exception.getMessage());
+                    }
+                }
+            }
         } else {
             // Preserve profile identity, observer subscriptions, and the tracker's existing history.
             profile.updateProfile(values.getWeight(), values.getFtp(), values.getMaxHR(),
                     values.getRestingHR(), values.getAvailableTrainingDays(),
                     values.getTargetWeight(), values.getTargetFTP(), values.getMainGoal());
+        }
+    }
+
+    private void requireFitnessHistory() throws IOException {
+        if (fitnessHistoryFailure != null) {
+            throw new IOException("Profile changes are blocked because fitness history could not be loaded/saved. "
+                    + "Repair the storage problem and restart. " + fitnessHistoryFailure.getMessage(), fitnessHistoryFailure);
         }
     }
 

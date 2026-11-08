@@ -20,15 +20,30 @@ public class ProgressTracker implements Observer {
      * profile.addObserver(tracker), and may call update() to capture an initial baseline.
      */
     public ProgressTracker(RiderProfile profile) {
+        this(profile, List.of());
+    }
+
+    /** Restores history without recording startup itself as a new measurement. */
+    public ProgressTracker(RiderProfile profile, List<FitnessRecord> existingRecords) {
         if (profile == null) {
             throw new IllegalArgumentException("profile is required.");
         }
         this.profile = profile;
+        if (existingRecords == null) {
+            throw new IllegalArgumentException("existingRecords is required.");
+        }
+        for (FitnessRecord record : existingRecords) {
+            appendRecord(record);
+        }
     }
 
-    /** Records today's values using the system default timezone. */
+    /** Records changed measurements using today's date; unrelated profile edits add no snapshot. */
     @Override
     public void update() {
+        if (!records.isEmpty() && newest().getFtp() == profile.getFtp()
+                && newest().getWeight() == profile.getWeight()) {
+            return;
+        }
         addRecord(new FitnessRecord(LocalDate.now(), profile.getFtp(), profile.getWeight()));
     }
 
@@ -38,6 +53,10 @@ public class ProgressTracker implements Observer {
      * For equal dates, insertion order determines which snapshot is newest.
      */
     public void addRecord(FitnessRecord record) {
+        appendRecord(record);
+    }
+
+    private void appendRecord(FitnessRecord record) {
         if (record == null) {
             throw new IllegalArgumentException("record is required.");
         }

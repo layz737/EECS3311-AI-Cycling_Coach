@@ -7,6 +7,7 @@ import service.PersonalBestService;
 import service.RideComparisonService;
 import storage.ProfileStorage;
 import storage.RideHistoryStorage;
+import storage.FitnessRecordStorage;
 import ui.CyclingCoachCLI;
 import ui.CyclingCoachGUI;
 
@@ -31,7 +32,8 @@ public final class Main {
             return;
         }
 
-        CyclingCoachController controller = createController(new ProfileStorage(), new RideHistoryStorage());
+        CyclingCoachController controller = createController(new ProfileStorage(), new RideHistoryStorage(),
+                new FitnessRecordStorage());
         if (cli) {
             new CyclingCoachCLI(controller).start();
         } else {
@@ -51,8 +53,14 @@ public final class Main {
     }
 
     static CyclingCoachController createController(ProfileStorage storage, RideHistoryStorage historyStorage) {
+        return createController(storage, historyStorage, new FitnessRecordStorage());
+    }
+
+    static CyclingCoachController createController(ProfileStorage storage, RideHistoryStorage historyStorage,
+                                                   FitnessRecordStorage fitnessStorage) {
         Objects.requireNonNull(storage, "storage is required");
         Objects.requireNonNull(historyStorage, "historyStorage is required");
+        Objects.requireNonNull(fitnessStorage, "fitnessStorage is required");
         RiderProfile profile = null;
         try {
             profile = storage.loadProfile().orElse(null);
@@ -71,6 +79,6 @@ public final class Main {
         }
         TrainingPlan plan = new TrainingPlan();
         return new CyclingCoachController(profile, history, plan,
-                new CSVImporter(), new RideComparisonService(), new PersonalBestService(), storage, historyStorage);
+                new CSVImporter(), new RideComparisonService(), new PersonalBestService(), storage, historyStorage, fitnessStorage);
     }
 }
