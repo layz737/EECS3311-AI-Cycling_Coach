@@ -108,13 +108,29 @@ public class CyclingCoachCLI {
         int days = integer("Available training days per week: ");
         double targetWeight = decimal("Target weight (kg): ");
         int targetFTP = integer("Target FTP (W): ");
-        String goal = read("Main goal: ");
+        String goal = chooseMainGoal();
         if (controller.getProfile().isPresent()) {
             controller.updateProfile(weight, ftp, maxHR, restingHR, days, targetWeight, targetFTP, goal);
         } else {
             controller.setUpProfile(weight, ftp, maxHR, restingHR, days, targetWeight, targetFTP, goal);
         }
         output.println("Rider profile saved.");
+    }
+
+    private String chooseMainGoal() {
+        while (true) {
+            output.println("Main goal:\n1. Improve FTP\n2. Lose Weight");
+            String choice = read("Choose main goal (1 or 2): ");
+            switch (choice) {
+                case "1" -> {
+                    return "Improve FTP";
+                }
+                case "2" -> {
+                    return "Lose Weight";
+                }
+                default -> output.println("Invalid main goal. Enter 1 or 2.");
+            }
+        }
     }
 
     private void importRides() throws IOException {
